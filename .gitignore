@@ -95,7 +95,4 @@ perf_results/
 *.pid.lock
 
 # Miniconda installer
-Miniconda3-latest-MacOSX-arm64.sh
-
-# Cursor IDE
-.cursor/ 
+Miniconda3-latest-MacOSX-arm64.sh 
