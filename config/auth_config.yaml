@@ -1,0 +1,20 @@
+# 认证配置
+auth:
+  # 认证服务器地址
+  token_url: "https://auth-station-staging.aevatar.ai/connect/token"
+  
+  # 认证参数
+  grant_type: "client_credentials"
+  scope: "Aevatar"
+  
+  # Token缓存配置
+  token_cache:
+    enabled: true
+    expire_before: 300  # 提前5分钟刷新token
+    cache_file: ".token_cache"
+  
+  # 请求配置
+  request:
+    timeout: 30
+    retry_count: 3
+    retry_delay: 1 

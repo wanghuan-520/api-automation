@@ -96,3 +96,16 @@ perf_results/
 
 # Miniconda installer
 Miniconda3-latest-MacOSX-arm64.sh 
+
+# Token缓存文件
+.token_cache
+*.token
+
+# 认证配置文件 (如果包含敏感信息)
+config/auth_config_local.yaml
+config/auth_config_prod.yaml
+
+# 环境变量文件
+.env
+.env.local
+.env.production 

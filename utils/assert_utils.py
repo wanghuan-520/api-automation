@@ -2,10 +2,14 @@ import json
 from typing import Any, Dict, List, Union
 import requests
 
-def assert_response_status(response: requests.Response, expected_status: int) -> None:
+def assert_response_status(response: requests.Response, expected_status: Union[int, List[int]]) -> None:
     """断言响应状态码"""
-    assert response.status_code == expected_status, \
-        f"Expected status code {expected_status}, but got {response.status_code}"
+    if isinstance(expected_status, list):
+        assert response.status_code in expected_status, \
+            f"Expected status code in {expected_status}, but got {response.status_code}"
+    else:
+        assert response.status_code == expected_status, \
+            f"Expected status code {expected_status}, but got {response.status_code}"
 
 def assert_json_response(response: requests.Response, expected_data: Dict[str, Any]) -> None:
     """断言JSON响应内容"""

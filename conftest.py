@@ -5,9 +5,9 @@ from utils.client import APIClient
 import subprocess
 
 @pytest.fixture(scope="session")
-def api_client() -> Generator[APIClient, None, None]:
+def api_client():
     """全局API客户端fixture"""
-    base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
+    base_url = os.getenv("API_BASE_URL", "https://station-developer-staging.aevatar.ai/godgpt-client/api")
     client = APIClient(base_url=base_url)
     yield client
 

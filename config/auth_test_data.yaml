@@ -1,0 +1,83 @@
+# 认证测试数据配置
+auth_test_data:
+  # 测试邮箱
+  test_emails:
+    valid_email: "test@example.com"
+    invalid_email: "invalid_email"
+    new_user_email: "newuser_{timestamp}@example.com"
+    sql_injection_email: "test@example.com' OR '1'='1"
+    
+  # 测试密码
+  test_passwords:
+    valid_password: "Test123456!"
+    weak_password: "123"
+    new_password: "NewTest123456!"
+    wrong_password: "wrong_password"
+    
+  # 验证码
+  verification_codes:
+    valid_code: "123456"
+    invalid_code: "000000"
+    expired_code: "999999"
+    
+  # OAuth测试数据
+  oauth_data:
+    google:
+      auth_code: "google_auth_code_123"
+      client_id: "google_client_id"
+      redirect_uri: "https://example.com/callback"
+      jwt_token: "google_jwt_token_here"
+    apple:
+      auth_code: "apple_auth_code_123"
+      client_id: "apple_client_id"
+      redirect_uri: "https://example.com/callback"
+      jwt_token: "apple_jwt_token_here"
+      
+  # 认证流程类型
+  verification_types:
+    register: "register"
+    reset_password: "reset_password"
+    login: "login"
+    
+  # 测试场景
+  test_scenarios:
+    # 邮箱密码登录
+    email_password_login:
+      grant_type: "password"
+      scope: "Aevatar"
+      
+    # Google登录
+    google_login:
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer"
+      scope: "Aevatar"
+      
+    # Apple登录
+    apple_login:
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer"
+      scope: "Aevatar"
+      
+    # OAuth授权码流程
+    oauth_authorization_code:
+      grant_type: "authorization_code"
+      
+  # 性能测试配置
+  performance:
+    email_check_timeout: 2.0  # 秒
+    verification_code_timeout: 5.0  # 秒
+    login_timeout: 3.0  # 秒
+    
+  # 安全测试配置
+  security:
+    brute_force_attempts: 5
+    rate_limit_expected: 429
+    
+  # 错误码映射
+  expected_codes:
+    success: "20000"
+    success_delete: "20001"
+    error: "50000"
+    bad_request: "40000"
+    unauthorized: "40100"
+    forbidden: "40300"
+    not_found: "40400"
+    rate_limited: "42900" 

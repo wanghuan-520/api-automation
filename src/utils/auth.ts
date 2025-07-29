@@ -8,6 +8,14 @@ interface TokenResponse {
   scope: string;
 }
 
+const authApi = axios.create({
+  baseURL: 'https://aevatar-station-ui-staging.aevatar.ai/godgpt-client',
+  timeout: 10000,
+  headers: {
+    'Content-Type': 'application/json',
+  },
+});
+
 const AUTH_CONFIG = {
   baseURL: 'https://aevatar-station-ui-staging.aevatar.ai',
   clientId: 'AevatarAuthServer',
@@ -16,7 +24,7 @@ const AUTH_CONFIG = {
 
 export const getToken = async (username: string, password: string): Promise<TokenResponse> => {
   try {
-    const response = await axios.post(
+    const response = await authApi.post(
       '/connect/token',
       qs.stringify({
         grant_type: 'password',

@@ -1,7 +1,12 @@
-test:
-  base_url: "http://example.com"
-  timeout: 10
+base_url: "https://station-developer-staging.aevatar.ai/godgpt-client/api"
+browser:
+  name: "chrome"
   headless: true
+  window_size: "1920x1080"
+timeout:
+  implicit: 10
+  explicit: 20
+  page_load: 30
 
 browser:
   chrome:
