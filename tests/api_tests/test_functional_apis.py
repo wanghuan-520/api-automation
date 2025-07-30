@@ -30,12 +30,19 @@ class TestFunctionalAPIs:
         self.client = api_client
         self.base_url = "https://station-developer-staging.aevatar.ai/godgpt-client/api"
         
+        # 初始化测试助手
+        from utils.test_helpers import TestHelper
+        self.test_helper = TestHelper()
+        
         # 测试邮箱和密码
         self.test_email = os.getenv("TEST_EMAIL", "test@example.com")
         self.test_password = os.getenv("TEST_PASSWORD", "Test123456!")
         
         # 获取认证token
         self.access_token = self._get_auth_token()
+        if self.access_token:
+            # 更新测试助手的token
+            self.test_helper.access_token = self.access_token
         
     def _get_auth_token(self):
         """获取认证token"""
@@ -125,23 +132,7 @@ class TestFunctionalAPIs:
             pytest.skip("无法获取认证token，跳过测试")
             
         with allure.step('准备认证请求头'):
-            headers = {
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-                'cache-control': 'no-cache',
-                'origin': 'https://godgpt-ui-testnet.aelf.dev',
-                'pragma': 'no-cache',
-                'priority': 'u=1, i',
-                'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-                'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"macOS"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'cross-site',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-                'Authorization': f'Bearer {self.access_token}'
-            }
+            headers = self.test_helper.get_api_headers(include_auth=True)
         
         with allure.step('获取邀请信息'):
             response = requests.get(f"{self.base_url}/godgpt/invitation/info", headers=headers, timeout=30)
@@ -213,24 +204,7 @@ class TestFunctionalAPIs:
             pytest.skip("无法获取认证token，跳过测试")
             
         with allure.step('准备认证请求头'):
-            headers = {
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-                'cache-control': 'no-cache',
-                'content-type': 'application/json',
-                'origin': 'https://godgpt-ui-testnet.aelf.dev',
-                'pragma': 'no-cache',
-                'priority': 'u=1, i',
-                'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-                'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"macOS"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'cross-site',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-                'Authorization': f'Bearer {self.access_token}'
-            }
+            headers = self.test_helper.get_api_headers(include_auth=True)
         
         with allure.step('准备邀请码兑换数据'):
             # 使用真实的邀请码进行测试
@@ -272,23 +246,7 @@ class TestFunctionalAPIs:
             pytest.skip("无法获取认证token，跳过测试")
             
         with allure.step('准备认证请求头'):
-            headers = {
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-                'cache-control': 'no-cache',
-                'origin': 'https://godgpt-ui-testnet.aelf.dev',
-                'pragma': 'no-cache',
-                'priority': 'u=1, i',
-                'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-                'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"macOS"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'cross-site',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-                'Authorization': f'Bearer {self.access_token}'
-            }
+            headers = self.test_helper.get_api_headers(include_auth=True)
         
         with allure.step('获取积分历史记录'):
             params = {
@@ -333,23 +291,7 @@ class TestFunctionalAPIs:
             pytest.skip("无法获取认证token，跳过测试")
             
         with allure.step('准备认证请求头'):
-            headers = {
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-                'cache-control': 'no-cache',
-                'origin': 'https://godgpt-ui-testnet.aelf.dev',
-                'pragma': 'no-cache',
-                'priority': 'u=1, i',
-                'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-                'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"macOS"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'cross-site',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-                'Authorization': f'Bearer {self.access_token}'
-            }
+            headers = self.test_helper.get_api_headers(include_auth=True)
         
         with allure.step('获取分享关键词'):
             response = requests.get(f"{self.base_url}/godgpt/share/keyword", headers=headers, timeout=30)
@@ -404,24 +346,7 @@ class TestFunctionalAPIs:
             pytest.skip("无法获取认证token，跳过测试")
             
         with allure.step('准备认证请求头'):
-            headers = {
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-                'cache-control': 'no-cache',
-                'content-type': 'application/json',
-                'origin': 'https://godgpt-ui-testnet.aelf.dev',
-                'pragma': 'no-cache',
-                'priority': 'u=1, i',
-                'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-                'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"macOS"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'cross-site',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-                'Authorization': f'Bearer {self.access_token}'
-            }
+            headers = self.test_helper.get_api_headers(include_auth=True)
         
         with allure.step('准备语音聊天数据'):
             voice_data = {
@@ -460,24 +385,7 @@ class TestFunctionalAPIs:
             pytest.skip("无法获取认证token，跳过测试")
             
         with allure.step('准备认证请求头'):
-            headers = {
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-                'cache-control': 'no-cache',
-                'content-type': 'application/json',
-                'origin': 'https://godgpt-ui-testnet.aelf.dev',
-                'pragma': 'no-cache',
-                'priority': 'u=1, i',
-                'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-                'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"macOS"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'cross-site',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-                'Authorization': f'Bearer {self.access_token}'
-            }
+            headers = self.test_helper.get_api_headers(include_auth=True)
         
         with allure.step('测试空邀请码'):
             empty_code_data = {"inviteCode": "", "newUserId": "test_user"}
@@ -536,23 +444,7 @@ class TestFunctionalAPIs:
             pytest.skip("无法获取认证token，跳过测试")
             
         with allure.step('准备认证请求头'):
-            headers = {
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-                'cache-control': 'no-cache',
-                'origin': 'https://godgpt-ui-testnet.aelf.dev',
-                'pragma': 'no-cache',
-                'priority': 'u=1, i',
-                'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-                'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"macOS"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'cross-site',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-                'Authorization': f'Bearer {self.access_token}'
-            }
+            headers = self.test_helper.get_api_headers(include_auth=True)
         
         with allure.step('测试分享关键词生成速度'):
             start_time = time.time()
@@ -592,23 +484,7 @@ class TestFunctionalAPIs:
             pytest.skip("无法获取认证token，跳过测试")
             
         with allure.step('准备认证请求头'):
-            headers = {
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-                'cache-control': 'no-cache',
-                'origin': 'https://godgpt-ui-testnet.aelf.dev',
-                'pragma': 'no-cache',
-                'priority': 'u=1, i',
-                'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-                'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"macOS"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'cross-site',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-                'Authorization': f'Bearer {self.access_token}'
-            }
+            headers = self.test_helper.get_api_headers(include_auth=True)
         
         with allure.step('获取初始积分信息'):
             response = requests.get(f"{self.base_url}/godgpt/invitation/info", headers=headers, timeout=30)
@@ -651,23 +527,7 @@ class TestFunctionalAPIs:
             pytest.skip("无法获取认证token，跳过测试")
             
         with allure.step('准备认证请求头'):
-            headers = {
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-                'cache-control': 'no-cache',
-                'origin': 'https://godgpt-ui-testnet.aelf.dev',
-                'pragma': 'no-cache',
-                'priority': 'u=1, i',
-                'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-                'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"macOS"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'cross-site',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-                'Authorization': f'Bearer {self.access_token}'
-            }
+            headers = self.test_helper.get_api_headers(include_auth=True)
         
         with allure.step('1. 获取邀请信息'):
             info_response = requests.get(f"{self.base_url}/godgpt/invitation/info", headers=headers, timeout=30)
@@ -715,23 +575,7 @@ class TestFunctionalAPIs:
             pytest.skip("无法获取认证token，跳过测试")
             
         with allure.step('准备认证请求头'):
-            headers = {
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-                'cache-control': 'no-cache',
-                'origin': 'https://godgpt-ui-testnet.aelf.dev',
-                'pragma': 'no-cache',
-                'priority': 'u=1, i',
-                'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-                'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"macOS"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'cross-site',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-                'Authorization': f'Bearer {self.access_token}'
-            }
+            headers = self.test_helper.get_api_headers(include_auth=True)
         
         with allure.step('测试不存在的分享ID'):
             response = requests.get(f"{self.base_url}/godgpt/share/nonexistent_share", headers=headers, timeout=30)
@@ -771,24 +615,7 @@ class TestFunctionalAPIs:
             pytest.skip("无法获取认证token，跳过测试")
             
         with allure.step('准备认证请求头'):
-            headers = {
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-                'cache-control': 'no-cache',
-                'content-type': 'application/json',
-                'origin': 'https://godgpt-ui-testnet.aelf.dev',
-                'pragma': 'no-cache',
-                'priority': 'u=1, i',
-                'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-                'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"macOS"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'cross-site',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-                'Authorization': f'Bearer {self.access_token}'
-            }
+            headers = self.test_helper.get_api_headers(include_auth=True)
         
         with allure.step('1. 创建会话'):
             session_data = {

@@ -31,6 +31,10 @@ class TestCoreAPIs:
         self.base_url = "https://station-developer-staging.aevatar.ai/godgpt-client/api"
         self.session_id = None
         
+        # 初始化测试助手
+        from utils.test_helpers import TestHelper
+        self.test_helper = TestHelper()
+        
         # 邮箱登录配置
         self.email_login_config = {
             "auth_url": "https://auth-pre-station-staging.aevatar.ai/connect/token",
@@ -46,6 +50,8 @@ class TestCoreAPIs:
             self.access_token = self._get_email_token()
             if self.access_token:
                 print("✅ 邮箱登录成功，获取到Token")
+                # 更新测试助手的token
+                self.test_helper.access_token = self.access_token
                 # 更新API客户端的认证头
                 self.client.update_auth_headers({
                     "Authorization": f"Bearer {self.access_token}",

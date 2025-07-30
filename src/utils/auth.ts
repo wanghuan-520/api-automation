@@ -1,5 +1,5 @@
 import axios from 'axios';
-import qs from 'qs';
+import * as qs from 'qs';
 
 interface TokenResponse {
   access_token: string;
@@ -64,4 +64,4 @@ export const getAuthToken = (): string | null => {
 
 export const removeAuthToken = () => {
   localStorage.removeItem('auth_token');
-}; 
+};

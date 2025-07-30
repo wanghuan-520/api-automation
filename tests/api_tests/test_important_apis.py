@@ -28,16 +28,18 @@ class TestImportantAPIs:
     def setup(self, api_client: APIClient):
         """测试前准备"""
         self.client = api_client
-        # 更新为正确的测试环境URL - 使用godgpt-client而不是godgpt-test-client
         self.base_url = "https://station-developer-staging.aevatar.ai/godgpt-client/api"
         
-        # 测试邮箱和密码
-        self.test_email = os.getenv("TEST_EMAIL", "test@example.com")
-        self.test_password = os.getenv("TEST_PASSWORD", "Test123456!")
+        # 初始化测试助手
+        from utils.test_helpers import TestHelper
+        self.test_helper = TestHelper()
         
         # 获取认证token
         self.access_token = self._get_auth_token()
-        
+        if self.access_token:
+            # 更新测试助手的token
+            self.test_helper.access_token = self.access_token
+    
     def _get_auth_token(self):
         """获取认证token"""
         login_data = {
@@ -84,24 +86,8 @@ class TestImportantAPIs:
         if not self.access_token:
             pytest.skip("无法获取认证token，跳过测试")
             
-        headers = {
-            'accept': '*/*',
-            'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-            'cache-control': 'no-cache',
-            'content-type': 'application/json',
-            'origin': 'https://godgpt-ui-testnet.aelf.dev',
-            'pragma': 'no-cache',
-            'priority': 'u=1, i',
-            'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-            'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"macOS"',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'cross-site',
-            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-            'Authorization': f'Bearer {self.access_token}'
-        }
+        # 使用统一的API headers
+        headers = self.test_helper.get_api_headers(include_auth=True)
         
         session_data = {
             "title": "Important API Test Session",
@@ -123,24 +109,8 @@ class TestImportantAPIs:
         if not self.access_token:
             pytest.skip("无法获取认证token，跳过测试")
             
-        headers = {
-            'accept': '*/*',
-            'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-            'cache-control': 'no-cache',
-            'content-type': 'application/json',
-            'origin': 'https://godgpt-ui-testnet.aelf.dev',
-            'pragma': 'no-cache',
-            'priority': 'u=1, i',
-            'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-            'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"macOS"',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'cross-site',
-            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-            'Authorization': f'Bearer {self.access_token}'
-        }
+        # 使用统一的API headers
+        headers = self.test_helper.get_api_headers(include_auth=True)
         
         guest_data = {
             "deviceId": "guest_device_important_test",
@@ -164,25 +134,8 @@ class TestImportantAPIs:
         if not self.access_token:
             pytest.skip("无法获取认证token，跳过测试")
             
-        with allure.step('准备认证请求头'):
-            headers = {
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-                'cache-control': 'no-cache',
-                'content-type': 'application/json',
-                'origin': 'https://godgpt-ui-testnet.aelf.dev',
-                'pragma': 'no-cache',
-                'priority': 'u=1, i',
-                'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-                'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"macOS"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'cross-site',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-                'Authorization': f'Bearer {self.access_token}'
-            }
+        with allure.step('使用统一的API headers'):
+            headers = self.test_helper.get_api_headers(include_auth=True)
         
         with allure.step('获取支付产品列表'):
             response = requests.get(f"{self.base_url}/godgpt/payment/products", headers=headers, timeout=30)
@@ -190,47 +143,27 @@ class TestImportantAPIs:
         with allure.step('验证响应状态'):
             assert_response_status(response, 200)
         
-        with allure.step('验证产品数据完整性'):
+        with allure.step('验证产品列表数据'):
             response_data = response.json()
             assert "code" in response_data
-            if response_data["code"] == "20000":
-                assert "data" in response_data
-                products = response_data["data"]
-                assert isinstance(products, list)
-                assert len(products) > 0, "产品列表不能为空"
-                
-                # 验证产品信息 - 根据实际API响应字段
-                for product in products:
-                    assert "planType" in product, "产品缺少planType字段"
-                    assert "priceId" in product, "产品缺少priceId字段"
-                    assert "mode" in product, "产品缺少mode字段"
-                    assert "amount" in product, "产品缺少amount字段"
-                    assert "dailyAvgPrice" in product, "产品缺少dailyAvgPrice字段"
-                    assert "currency" in product, "产品缺少currency字段"
-                    assert "isUltimate" in product, "产品缺少isUltimate字段"
-                    
-                    # 验证数据类型
-                    assert isinstance(product["planType"], int), "planType应该是整数类型"
-                    assert isinstance(product["priceId"], str), "priceId应该是字符串类型"
-                    assert isinstance(product["mode"], str), "mode应该是字符串类型"
-                    assert isinstance(product["amount"], (int, float)), "amount应该是数字类型"
-                    assert isinstance(product["dailyAvgPrice"], str), "dailyAvgPrice应该是字符串类型"
-                    assert isinstance(product["currency"], str), "currency应该是字符串类型"
-                    assert isinstance(product["isUltimate"], bool), "isUltimate应该是布尔类型"
-                    
-                    # 验证业务逻辑
-                    assert product["mode"] == "subscription", "产品模式应该是subscription"
-                    assert product["currency"] == "USD", "货币应该是USD"
-                    assert product["amount"] > 0, "产品金额应该大于0"
-                
-                print(f"✅ 支付产品列表获取成功: {len(products)}个产品")
-                print(f"📊 产品详情:")
-                for i, product in enumerate(products):
-                    ultimate_status = "🔥 终极版" if product["isUltimate"] else "📦 标准版"
-                    print(f"   {i+1}. {product['planType']}型 - ${product['amount']} ({product['currency']}) - {ultimate_status}")
-            else:
-                print(f"⚠️ 获取支付产品列表失败: {response_data}")
-                assert "message" in response_data
+            assert response_data["code"] == "20000"
+            assert "data" in response_data
+            
+            products = response_data["data"]
+            assert isinstance(products, list)
+            assert len(products) > 0
+            
+            # 验证产品数据结构
+            for product in products:
+                assert "id" in product
+                assert "name" in product
+                assert "price" in product
+                assert "currency" in product
+                assert "description" in product
+            
+            print(f"✅ 成功获取 {len(products)} 个支付产品")
+            for product in products:
+                print(f"💰 产品: {product['name']} - {product['price']} {product['currency']}")
     
     @allure.feature('支付系统')
     @allure.story('POST /api/godgpt/payment/verify-receipt')

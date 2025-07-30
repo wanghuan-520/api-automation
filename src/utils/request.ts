@@ -2,7 +2,7 @@ import axios from 'axios';
 import { getAuthToken } from './auth';
 
 const request = axios.create({
-  baseURL: process.env.API_BASE_URL || 'http://localhost:3000',
+  baseURL: process.env['API_BASE_URL'] || 'http://localhost:3000',
   timeout: 10000,
   headers: {
     'Content-Type': 'application/json',

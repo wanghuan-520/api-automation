@@ -80,7 +80,7 @@ class TestHelper:
         }
     
     def get_api_headers(self, include_auth: bool = True) -> Dict[str, str]:
-        """获取API请求头"""
+        """获取API请求头 - 优化版本，移除不必要的浏览器相关headers"""
         headers = {
             'accept': '*/*',
             'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
@@ -88,14 +88,7 @@ class TestHelper:
             'content-type': 'application/json',
             'origin': self.config.origin,
             'pragma': 'no-cache',
-            'priority': 'u=1, i',
             'referer': self.config.referer,
-            'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-            'sec-ch-ua-mobile': '?0',
-            'sec-ch-ua-platform': '"macOS"',
-            'sec-fetch-dest': 'empty',
-            'sec-fetch-mode': 'cors',
-            'sec-fetch-site': 'cross-site',
             'user-agent': self.user_agent
         }
         

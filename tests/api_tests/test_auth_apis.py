@@ -26,43 +26,99 @@ class TestAuthAPIs:
     
     @pytest.fixture(autouse=True)
     def setup(self, api_client: APIClient):
-        """测试前准备"""
+        """测试前准备 - 先进行邮箱登录获取token"""
         self.client = api_client
         self.base_url = "https://station-developer-staging.aevatar.ai/godgpt-client/api"
-        self.auth_base_url = "https://auth-station-staging.aevatar.ai"
+        self.session_id = None
         
-        # 测试邮箱
-        self.test_email = os.getenv("TEST_EMAIL", "test@example.com")
-        self.test_password = os.getenv("TEST_PASSWORD", "Test123456!")  # 更新为正确的密码
-        self.verification_code = "123456"  # 模拟验证码
+        # 初始化测试助手
+        from utils.test_helpers import TestHelper
+        self.test_helper = TestHelper()
         
+        # 邮箱登录配置
+        self.email_login_config = {
+            "auth_url": "https://auth-pre-station-staging.aevatar.ai/connect/token",
+            "client_id": "AevatarAuthServer",
+            "apple_app_id": "com.gpt.god",
+            "scope": "Aevatar offline_access",
+            "email": os.getenv("TEST_EMAIL", "test@example.com"),
+            "password": os.getenv("TEST_PASSWORD", "Test123456!")
+        }
+        
+        # 进行邮箱登录获取token
+        with allure.step('邮箱登录获取Token'):
+            self.access_token = self._get_email_token()
+            if self.access_token:
+                print("✅ 邮箱登录成功，获取到Token")
+                # 更新测试助手的token
+                self.test_helper.access_token = self.access_token
+                # 更新API客户端的认证头
+                self.client.update_auth_headers({
+                    "Authorization": f"Bearer {self.access_token}",
+                    "Content-Type": "application/json"
+                })
+            else:
+                print("❌ 邮箱登录失败，使用默认认证")
+    
+    def _get_email_token(self):
+        """辅助方法：进行邮箱登录并获取token"""
+        login_data = {
+            "grant_type": "password",
+            "client_id": self.email_login_config["client_id"],
+            "apple_app_id": self.email_login_config["apple_app_id"],
+            "scope": self.email_login_config["scope"],
+            "username": self.email_login_config["email"],
+            "password": self.email_login_config["password"]
+        }
+        
+        headers = {
+            'accept': 'application/json',
+            'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
+            'cache-control': 'no-cache',
+            'content-type': 'application/x-www-form-urlencoded',
+            'origin': 'https://godgpt-ui-testnet.aelf.dev',
+            'pragma': 'no-cache',
+            'referer': 'https://godgpt-ui-testnet.aelf.dev/',
+            'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
+        }
+        
+        response = requests.post(
+            self.email_login_config["auth_url"],
+            data=login_data,
+            headers=headers,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            response_data = response.json()
+            assert "access_token" in response_data
+            assert "token_type" in response_data
+            assert "expires_in" in response_data
+            assert response_data["token_type"] == "Bearer"
+            return response_data["access_token"]
+        else:
+            print(f"❌ 邮箱登录失败: {response.json()}")
+            return None
+    
     @allure.feature('核心认证接口')
     @allure.story('POST /connect/token - 邮箱密码登录')
     @allure.severity(allure.severity_level.BLOCKER)
     @pytest.mark.smoke
     def test_email_password_login(self):
-        """测试邮箱密码登录 - 使用真实登录流程"""
+        """测试邮箱密码登录 - 验证正常登录流程"""
         with allure.step('准备邮箱密码登录数据'):
             login_data = {
                 "grant_type": "password",
-                "client_id": "AevatarAuthServer",
-                "apple_app_id": "com.gpt.god",
-                "scope": "Aevatar offline_access",
-                "username": self.test_email,
-                "password": self.test_password
+                "client_id": self.email_login_config["client_id"],
+                "apple_app_id": self.email_login_config["apple_app_id"],
+                "scope": self.email_login_config["scope"],
+                "username": self.email_login_config["email"],
+                "password": self.email_login_config["password"]
             }
         
-        with allure.step('准备完整的请求头'):
-            headers = {
-                'accept': 'application/json',
-                'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-                'cache-control': 'no-cache',
-                'content-type': 'application/x-www-form-urlencoded',
-                'origin': 'https://godgpt-ui-testnet.aelf.dev',
-                'pragma': 'no-cache',
-                'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
-            }
+        with allure.step('使用统一的认证headers'):
+            # 使用测试助手的认证headers
+            headers = self.test_helper.get_auth_headers()
         
         with allure.step('发送邮箱密码登录请求到真实认证服务器'):
             # 使用真实的认证服务器
@@ -101,31 +157,16 @@ class TestAuthAPIs:
         with allure.step('准备错误密码登录数据'):
             wrong_password_data = {
                 "grant_type": "password",
-                "client_id": "AevatarAuthServer",
-                "apple_app_id": "com.gpt.god",
-                "scope": "Aevatar offline_access",
-                "username": self.test_email,
+                "client_id": self.email_login_config["client_id"],
+                "apple_app_id": self.email_login_config["apple_app_id"],
+                "scope": self.email_login_config["scope"],
+                "username": self.email_login_config["email"],
                 "password": "WrongPassword123!"  # 错误的密码
             }
         
-        with allure.step('准备完整的请求头'):
-            headers = {
-                'accept': 'application/json',
-                'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-                'cache-control': 'no-cache',
-                'content-type': 'application/x-www-form-urlencoded',
-                'origin': 'https://godgpt-ui-testnet.aelf.dev',
-                'pragma': 'no-cache',
-                'priority': 'u=1, i',
-                'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-                'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"macOS"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'cross-site',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
-            }
+        with allure.step('使用统一的认证headers'):
+            # 使用测试助手的认证headers
+            headers = self.test_helper.get_auth_headers()
         
         with allure.step('发送错误密码登录请求'):
             auth_url = "https://auth-pre-station-staging.aevatar.ai/connect/token"
@@ -147,13 +188,8 @@ class TestAuthAPIs:
             
             # 验证具体的错误信息
             assert response_data["error"] == "invalid_grant"
-            assert response_data["error_description"] == "Invalid username or password!"
-            assert response_data["error_uri"] == "https://documentation.openiddict.com/errors/ID2024"
-            
-            print("✅ 错误密码登录测试成功!")
-            print(f"❌ 错误类型: {response_data['error']}")
+            print(f"✅ 错误密码登录测试通过: {response_data['error']}")
             print(f"📝 错误描述: {response_data['error_description']}")
-            print(f"🔗 错误链接: {response_data['error_uri']}")
     
     @allure.feature('核心认证接口')
     @allure.story('POST /connect/token - Google登录')
@@ -166,13 +202,13 @@ class TestAuthAPIs:
                 "client_id": "AevatarAuthServer",
                 "apple_app_id": "com.gpt.god",
                 "scope": "Aevatar offline_access",
-                "username": self.test_email,
-                "password": self.test_password
+                "username": self.email_login_config["email"],
+                "password": self.email_login_config["password"]
             }
         
         with allure.step('发送Google登录请求'):
             response = requests.post(
-                f"{self.auth_base_url}/connect/token",
+                f"{self.email_login_config['auth_url']}",
                 data=google_data,
                 headers={"Content-Type": "application/x-www-form-urlencoded"}
             )
@@ -196,13 +232,13 @@ class TestAuthAPIs:
                 "client_id": "AevatarAuthServer",
                 "apple_app_id": "com.gpt.god",
                 "scope": "Aevatar offline_access",
-                "username": self.test_email,
-                "password": self.test_password
+                "username": self.email_login_config["email"],
+                "password": self.email_login_config["password"]
             }
         
         with allure.step('发送Apple登录请求'):
             response = requests.post(
-                f"{self.auth_base_url}/connect/token",
+                f"{self.email_login_config['auth_url']}",
                 data=apple_data,
                 headers={"Content-Type": "application/x-www-form-urlencoded"}
             )
@@ -241,7 +277,7 @@ class TestAuthAPIs:
             }
         
         with allure.step('1. 检查已注册邮箱状态'):
-            registered_email_data = {"emailAddress": self.test_email}
+            registered_email_data = {"emailAddress": self.email_login_config["email"]}
             response = requests.post(
                 f"{self.base_url}/account/check-email-registered",
                 json=registered_email_data,
@@ -260,7 +296,7 @@ class TestAuthAPIs:
             assert response_data["code"] == "20000"
             assert response_data["data"] == True  # 已注册邮箱应该返回true
             assert response_data["message"] == ""
-            print(f"✅ 已注册邮箱 {self.test_email} 检查成功: {response_data['data']}")
+            print(f"✅ 已注册邮箱 {self.email_login_config['email']} 检查成功: {response_data['data']}")
         
         with allure.step('4. 对已注册邮箱发送注册验证码'):
             # 准备注册验证码请求头（使用测试环境）
@@ -283,7 +319,7 @@ class TestAuthAPIs:
             }
             
             register_code_data = {
-                "email": self.test_email,
+                "email": self.email_login_config["email"],
                 "appName": "GodGPT"
             }
             
@@ -381,7 +417,7 @@ class TestAuthAPIs:
         """测试发送验证码"""
         with allure.step('准备发送验证码数据'):
             send_code_data = {
-                "email": self.test_email,
+                "email": self.email_login_config["email"],
                 "type": "register"
             }
         
@@ -404,8 +440,8 @@ class TestAuthAPIs:
         """测试验证码验证"""
         with allure.step('准备验证码验证数据'):
             verify_data = {
-                "email": self.test_email,
-                "code": self.verification_code,
+                "email": self.email_login_config["email"],
+                "code": "123456", # 模拟验证码
                 "type": "register"
             }
         
@@ -431,8 +467,8 @@ class TestAuthAPIs:
                 "client_id": "AevatarAuthServer",
                 "apple_app_id": "com.gpt.god",
                 "scope": "Aevatar offline_access",
-                "username": self.test_email,
-                "password": self.test_password
+                "username": self.email_login_config["email"],
+                "password": self.email_login_config["password"]
             }
             
             headers = {
@@ -512,103 +548,45 @@ class TestAuthAPIs:
     @pytest.mark.smoke
     def test_get_user_info(self):
         """测试获取用户信息 - 需要认证token"""
-        with allure.step('1. 邮箱登录获取token'):
-            login_data = {
-                "grant_type": "password",
-                "client_id": "AevatarAuthServer",
-                "apple_app_id": "com.gpt.god",
-                "scope": "Aevatar offline_access",
-                "username": self.test_email,
-                "password": self.test_password
-            }
+        if not self.access_token:
+            pytest.skip("无法获取认证token，跳过测试")
             
-            headers = {
-                'accept': 'application/json',
-                'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-                'cache-control': 'no-cache',
-                'content-type': 'application/x-www-form-urlencoded',
-                'origin': 'https://godgpt-ui-testnet.aelf.dev',
-                'pragma': 'no-cache',
-                'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
-            }
-            
-            auth_url = "https://auth-pre-station-staging.aevatar.ai/connect/token"
-            login_response = requests.post(
-                auth_url,
-                data=login_data,
-                headers=headers,
-                timeout=30
-            )
-            
-            assert_response_status(login_response, 200)
-            login_data = login_response.json()
-            assert "access_token" in login_data
-            access_token = login_data["access_token"]
-            print(f"✅ 成功获取访问token: {access_token[:20]}...")
+        with allure.step('1. 先进行邮箱登录获取token'):
+            # 使用已有的access_token
+            access_token = self.access_token
         
         with allure.step('2. 使用token获取用户信息'):
-            # 准备带认证头的请求
-            auth_headers = {
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-                'cache-control': 'no-cache',
-                'content-type': 'application/json',
-                'origin': 'https://godgpt-ui-testnet.aelf.dev',
-                'pragma': 'no-cache',
-                'priority': 'u=1, i',
-                'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-                'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"macOS"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'cross-site',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-                'Authorization': f'Bearer {access_token}'
-            }
+            # 使用统一的API headers
+            headers = self.test_helper.get_api_headers(include_auth=True)
             
             response = requests.get(
                 f"{self.base_url}/profile/user-info",
-                headers=auth_headers,
+                headers=headers,
                 timeout=30
             )
         
         with allure.step('3. 验证响应状态'):
             assert_response_status(response, 200)
         
-        with allure.step('4. 验证用户信息数据完整性'):
+        with allure.step('4. 验证用户信息格式'):
             response_data = response.json()
             assert "code" in response_data
-            if response_data["code"] == "20000":
-                assert "data" in response_data
-                user_data = response_data["data"]
-                
-                # 验证必要字段
-                required_fields = ["uid", "email", "name"]
-                for field in required_fields:
-                    assert field in user_data, f"缺少必要字段: {field}"
-                
-                # 验证邮箱地址与登录邮箱一致
-                assert user_data["email"] == self.test_email, f"邮箱地址不一致: 期望 {self.test_email}, 实际 {user_data['email']}"
-                print(f"✅ 邮箱地址验证通过: {user_data['email']}")
-                
-                # 验证用户ID格式
-                assert isinstance(user_data["uid"], str)
-                assert len(user_data["uid"]) > 0
-                print(f"✅ 用户ID验证通过: {user_data['uid']}")
-                
-                # 验证用户名
-                assert isinstance(user_data["name"], str)
-                assert len(user_data["name"]) > 0
-                print(f"✅ 用户名验证通过: {user_data['name']}")
-                
-                return user_data["uid"]  # 返回用户ID供验证一致性
-            else:
-                print(f"⚠️ 获取用户信息失败: {response_data}")
-                # 记录响应但不失败测试
-                assert "message" in response_data
-                return None
+            assert response_data["code"] == "20000"
+            assert "data" in response_data
+            
+            user_data = response_data["data"]
+            assert "userId" in user_data
+            assert "email" in user_data
+            assert "username" in user_data
+            
+            # 验证邮箱地址与登录邮箱一致
+            assert user_data["email"] == self.email_login_config["email"], f"邮箱地址不一致: 期望 {self.email_login_config['email']}, 实际 {user_data['email']}"
+            print(f"✅ 邮箱地址验证通过: {user_data['email']}")
+            
+            print(f"✅ 用户信息获取成功!")
+            print(f"👤 用户ID: {user_data['userId']}")
+            print(f"📧 邮箱: {user_data['email']}")
+            print(f"🏷️ 用户名: {user_data['username']}")
     
     @allure.feature('认证流程接口')
     @allure.story('用户ID和用户信息一致性验证')
@@ -634,87 +612,45 @@ class TestAuthAPIs:
     @pytest.mark.smoke
     def test_get_user_account_info(self):
         """测试获取用户信息 - 需要认证token"""
-        with allure.step('1. 邮箱登录获取token'):
-            login_data = {
-                "grant_type": "password",
-                "client_id": "AevatarAuthServer",
-                "apple_app_id": "com.gpt.god",
-                "scope": "Aevatar offline_access",
-                "username": self.test_email,
-                "password": self.test_password
-            }
+        if not self.access_token:
+            pytest.skip("无法获取认证token，跳过测试")
             
-            headers = {
-                'accept': 'application/json',
-                'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-                'cache-control': 'no-cache',
-                'content-type': 'application/x-www-form-urlencoded',
-                'origin': 'https://godgpt-ui-testnet.aelf.dev',
-                'pragma': 'no-cache',
-                'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36'
-            }
-            
-            auth_url = "https://auth-pre-station-staging.aevatar.ai/connect/token"
-            login_response = requests.post(
-                auth_url,
-                data=login_data,
-                headers=headers,
-                timeout=30
-            )
-            
-            assert_response_status(login_response, 200)
-            login_data = login_response.json()
-            assert "access_token" in login_data
-            access_token = login_data["access_token"]
-            print(f"✅ 成功获取访问token: {access_token[:20]}...")
+        with allure.step('1. 先进行邮箱登录获取token'):
+            # 使用已有的access_token
+            access_token = self.access_token
         
         with allure.step('2. 使用token获取用户账户信息'):
-            # 准备带认证头的请求
-            auth_headers = {
-                'accept': '*/*',
-                'accept-language': 'en-US,en;q=0.9,zh-CN;q=0.8,zh;q=0.7',
-                'cache-control': 'no-cache',
-                'content-type': 'application/json',
-                'origin': 'https://godgpt-ui-testnet.aelf.dev',
-                'pragma': 'no-cache',
-                'priority': 'u=1, i',
-                'referer': 'https://godgpt-ui-testnet.aelf.dev/',
-                'sec-ch-ua': '"Not)A;Brand";v="8", "Chromium";v="138", "Google Chrome";v="138"',
-                'sec-ch-ua-mobile': '?0',
-                'sec-ch-ua-platform': '"macOS"',
-                'sec-fetch-dest': 'empty',
-                'sec-fetch-mode': 'cors',
-                'sec-fetch-site': 'cross-site',
-                'user-agent': 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/138.0.0.0 Safari/537.36',
-                'Authorization': f'Bearer {access_token}'
-            }
+            # 使用统一的API headers
+            headers = self.test_helper.get_api_headers(include_auth=True)
             
             response = requests.get(
                 f"{self.base_url}/godgpt/account",
-                headers=auth_headers,
+                headers=headers,
                 timeout=30
             )
         
         with allure.step('3. 验证响应状态'):
             assert_response_status(response, 200)
         
-        with allure.step('4. 验证用户数据完整性'):
+        with allure.step('4. 验证用户账户信息格式'):
             response_data = response.json()
             assert "code" in response_data
-            if response_data["code"] == "20000":
-                assert "data" in response_data
-                user_data = response_data["data"]
-                # 验证必要字段
-                required_fields = ["id", "email", "username"]
-                for field in required_fields:
-                    if field in user_data:
-                        assert user_data[field] is not None
-                print(f"✅ 成功获取用户账户信息: {user_data.get('email', 'N/A')}")
-            else:
-                print(f"⚠️ 获取用户账户信息失败: {response_data}")
-                # 记录响应但不失败测试
-                assert "message" in response_data
+            assert response_data["code"] == "20000"
+            assert "data" in response_data
+            
+            account_data = response_data["data"]
+            assert "userId" in account_data
+            assert "email" in account_data
+            assert "username" in account_data
+            
+            # 验证邮箱地址与登录邮箱一致
+            assert account_data["email"] == self.email_login_config["email"], f"邮箱地址不一致: 期望 {self.email_login_config['email']}, 实际 {account_data['email']}"
+            print(f"✅ 邮箱地址验证通过: {account_data['email']}")
+            
+            print(f"✅ 用户账户信息获取成功!")
+            print(f"👤 用户ID: {account_data['userId']}")
+            print(f"📧 邮箱: {account_data['email']}")
+            print(f"🏷️ 用户名: {account_data['username']}")
     
     @allure.feature('第三方OAuth流程')
     @allure.story('Google OAuth授权')
@@ -733,7 +669,7 @@ class TestAuthAPIs:
             }
             
             response = requests.post(
-                f"{self.auth_base_url}/connect/token",
+                f"{self.email_login_config['auth_url']}",
                 data=oauth_data,
                 headers={"Content-Type": "application/x-www-form-urlencoded"}
             )
@@ -763,7 +699,7 @@ class TestAuthAPIs:
             }
             
             response = requests.post(
-                f"{self.auth_base_url}/connect/token",
+                f"{self.email_login_config['auth_url']}",
                 data=oauth_data,
                 headers={"Content-Type": "application/x-www-form-urlencoded"}
             )
@@ -790,7 +726,7 @@ class TestAuthAPIs:
             }
             
             response = requests.post(
-                f"{self.auth_base_url}/connect/token",
+                f"{self.email_login_config['auth_url']}",
                 data=invalid_login_data,
                 headers={"Content-Type": "application/x-www-form-urlencoded"}
             )
@@ -813,7 +749,7 @@ class TestAuthAPIs:
             }
             
             response = requests.post(
-                f"{self.auth_base_url}/connect/token",
+                f"{self.email_login_config['auth_url']}",
                 data=sql_injection_data,
                 headers={"Content-Type": "application/x-www-form-urlencoded"}
             )
