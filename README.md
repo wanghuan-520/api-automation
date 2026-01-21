@@ -14,8 +14,8 @@ This is a modern API automation testing framework, incorporating mainstream test
 - 支持并发执行 | Support concurrent execution
 - 支持数据驱动 | Support data-driven testing
 - 支持CI/CD集成 | Support CI/CD integration
-- 支持业务适配器模式 | Support business adapter pattern
 - 支持配置统一管理 | Support unified configuration management
+- 支持环境变量配置 | Support environment variable configuration
 
 ## 技术栈 | Tech Stack
 
@@ -37,16 +37,15 @@ api-automation/
 ├── config/            # 配置文件目录 | Configuration directory
 │   └── config.yaml   # 环境配置 | Environment configuration
 ├── tests/             # 测试用例目录 | Test cases directory
-│   ├── adapters/     # 业务适配器 | Business adapters
-│   ├── base_test.py  # 测试用例基类 | Base test class
-│   ├── templates/    # 测试用例模板 | Test templates
-│   └── developer_platform/  # 业务测试用例 | Business test cases
+│   └── (测试用例文件)  # Test case files
 ├── utils/             # 工具类目录 | Utility classes directory
 │   ├── client.py     # API客户端 | API client
 │   └── assert_utils.py  # 断言工具 | Assertion utilities
 ├── docs/              # 文档目录 | Documentation directory
 ├── reports/           # 测试报告目录 | Test reports directory
 ├── scripts/           # 脚本工具目录 | Script tools directory
+├── libs/              # 库文件目录 | Library files directory
+├── test-cases/        # 测试用例数据 | Test case data
 ├── requirements.txt   # Python依赖 | Python dependencies
 ├── pytest.ini        # Pytest配置 | Pytest configuration
 ├── conftest.py       # Pytest全局配置 | Pytest global configuration
@@ -103,8 +102,8 @@ AUTH_SCOPE=your-scope
 pytest
 
 # 运行指定测试 | Run specific tests
-pytest tests/developer_platform/  # 运行指定模块测试 | Run specific module tests
-pytest tests/ -k "test_plugin"  # 运行匹配的测试 | Run matching tests
+pytest tests/  # 运行所有测试 | Run all tests
+pytest tests/ -k "test_name"  # 运行匹配的测试 | Run matching tests
 
 # 生成HTML报告 | Generate HTML report
 pytest --html=reports/html/report.html
@@ -128,12 +127,11 @@ After test execution, reports can be found at:
 
 ## 最佳实践 | Best Practices
 
-- 使用业务适配器模式抽象业务逻辑 | Use business adapter pattern to abstract business logic
 - 使用数据驱动方式组织测试数据 | Use data-driven approach for test data
+- 使用环境变量管理配置，避免硬编码 | Use environment variables for configuration, avoid hardcoding
 - 保持测试用例的独立性 | Keep test cases independent
 - 合理使用夹具(fixtures)复用代码 | Properly use fixtures for code reuse
 - 及时清理测试数据 | Clean up test data timely
-- 使用环境变量管理配置，避免硬编码 | Use environment variables for configuration, avoid hardcoding
 
 ## 贡献指南 | Contributing
 
