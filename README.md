@@ -2,20 +2,20 @@
 
 ## 项目概述 | Overview
 
-这是一个现代化的API自动化测试框架，集成了主流测试工具和最佳实践。本框架支持多种测试类型，包括接口自动化测试、UI自动化测试和性能测试。
+这是一个现代化的API自动化测试框架，集成了主流测试工具和最佳实践。本框架专注于接口自动化测试，提供完整的测试解决方案。
 
-This is a modern API automation testing framework, incorporating mainstream testing tools and best practices. The framework supports various testing types, including API automation tests, UI automation tests, and performance tests.
+This is a modern API automation testing framework, incorporating mainstream testing tools and best practices. The framework focuses on API automation testing and provides a complete testing solution.
 
 ## 特性 | Features
 
 - 支持接口自动化测试 | Support API automation testing
-- 支持UI自动化测试 | Support UI automation testing
-- 支持性能测试 | Support performance testing
 - 支持多环境配置 | Support multi-environment configuration
 - 支持测试报告生成 | Support test report generation
 - 支持并发执行 | Support concurrent execution
 - 支持数据驱动 | Support data-driven testing
 - 支持CI/CD集成 | Support CI/CD integration
+- 支持业务适配器模式 | Support business adapter pattern
+- 支持配置统一管理 | Support unified configuration management
 
 ## 技术栈 | Tech Stack
 
@@ -23,31 +23,29 @@ This is a modern API automation testing framework, incorporating mainstream test
 - Python 3.x
 - pytest 7.4.3 (测试框架 | Testing framework)
 - requests 2.31.0 (HTTP客户端 | HTTP client)
-- selenium 4.11.2 (UI自动化 | UI automation)
+- urllib3 2.0.7 (HTTP库，支持重试机制 | HTTP library with retry support)
 - pytest-html 3.2.0 (HTML报告生成 | HTML report generation)
 - pytest-cov 4.1.0 (代码覆盖率 | Code coverage)
 - pytest-xdist 3.3.1 (并行测试 | Parallel testing)
 - python-dotenv 1.0.0 (环境变量管理 | Environment management)
+- allure-pytest 2.13.2 (Allure报告 | Allure reporting)
 
 ## 项目结构 | Project Structure
 
 ```
 api-automation/
-├── src/                # 源代码目录 | Source code directory
-│   ├── api/           # API接口封装 | API interface encapsulation
-│   ├── pages/         # 页面对象 | Page objects
-│   └── utils/         # 工具类 | Utility classes
-├── tests/             # 测试用例目录 | Test cases directory
-│   ├── api_tests/     # 接口测试用例 | API test cases
-│   ├── ui_tests/      # UI测试用例 | UI test cases
-│   └── perf_tests/    # 性能测试用例 | Performance test cases
 ├── config/            # 配置文件目录 | Configuration directory
-│   ├── env/          # 环境配置 | Environment configuration
-│   └── data/         # 测试数据 | Test data
+│   └── config.yaml   # 环境配置 | Environment configuration
+├── tests/             # 测试用例目录 | Test cases directory
+│   ├── adapters/     # 业务适配器 | Business adapters
+│   ├── base_test.py  # 测试用例基类 | Base test class
+│   ├── templates/    # 测试用例模板 | Test templates
+│   └── developer_platform/  # 业务测试用例 | Business test cases
+├── utils/             # 工具类目录 | Utility classes directory
+│   ├── client.py     # API客户端 | API client
+│   └── assert_utils.py  # 断言工具 | Assertion utilities
+├── docs/              # 文档目录 | Documentation directory
 ├── reports/           # 测试报告目录 | Test reports directory
-│   ├── html/         # HTML报告 | HTML reports
-│   └── allure/       # Allure报告 | Allure reports
-├── logs/              # 日志目录 | Logs directory
 ├── scripts/           # 脚本工具目录 | Script tools directory
 ├── requirements.txt   # Python依赖 | Python dependencies
 ├── pytest.ini        # Pytest配置 | Pytest configuration
@@ -85,11 +83,17 @@ API_VERSION=v1
 
 # 测试环境 | Test Environment
 TEST_ENV=dev
-BROWSER_TYPE=chrome
 
-# 其他配置 | Other Configuration
-HEADLESS=True
-SCREENSHOT_DIR=./reports/screenshots
+# API配置 | API Configuration
+API_TIMEOUT=30
+API_MAX_RETRIES=3
+
+# 认证配置 | Authentication Configuration
+AUTH_TOKEN_URL=https://your-api.example.com/connect/token
+TEST_USERNAME=your-username
+TEST_PASSWORD=your-password
+AUTH_CLIENT_ID=your-client-id
+AUTH_SCOPE=your-scope
 ```
 
 4. 运行测试 | Run Tests
@@ -99,8 +103,8 @@ SCREENSHOT_DIR=./reports/screenshots
 pytest
 
 # 运行指定测试 | Run specific tests
-pytest tests/api_tests/  # 运行API测试 | Run API tests
-pytest tests/ui_tests/   # 运行UI测试 | Run UI tests
+pytest tests/developer_platform/  # 运行指定模块测试 | Run specific module tests
+pytest tests/ -k "test_plugin"  # 运行匹配的测试 | Run matching tests
 
 # 生成HTML报告 | Generate HTML report
 pytest --html=reports/html/report.html
@@ -124,11 +128,12 @@ After test execution, reports can be found at:
 
 ## 最佳实践 | Best Practices
 
-- 使用Page Object模式组织UI测试 | Use Page Object pattern for UI tests
+- 使用业务适配器模式抽象业务逻辑 | Use business adapter pattern to abstract business logic
 - 使用数据驱动方式组织测试数据 | Use data-driven approach for test data
 - 保持测试用例的独立性 | Keep test cases independent
 - 合理使用夹具(fixtures)复用代码 | Properly use fixtures for code reuse
 - 及时清理测试数据 | Clean up test data timely
+- 使用环境变量管理配置，避免硬编码 | Use environment variables for configuration, avoid hardcoding
 
 ## 贡献指南 | Contributing
 
