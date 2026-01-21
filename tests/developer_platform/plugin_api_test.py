@@ -59,8 +59,9 @@ import time
 import json
 
 # 添加项目根目录到Python路径
-sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 from docs.rules.test_rules import APITestCase, APITestSuite, APITestStatus, APITestResult
+from config.config_manager import ConfigManager
 
 # 配置日志
 logging.basicConfig(
@@ -102,30 +103,45 @@ class PluginResponse:
 
 @allure.feature('插件API测试')
 class TestPluginAPI:
-    BASE_URL = os.getenv('API_BASE_URL', 'https://aevatar-station-ui-staging.aevatar.ai/api/plugins')
-    TEST_PROJECT_ID = os.getenv('TEST_PROJECT_ID', '4905508f-def5-ff31-f692-3a196ee1455d')
+    """插件 API 测试类"""
+    
+    # 类属性（在 setup_method 中会被实例属性覆盖）
+    config = None
+    BASE_URL = None
+    TEST_PROJECT_ID = None
+    headers = None
     
     @allure.step('编译并上传DLL文件')
-    def compile_and_upload_dll(self, plugin_id: str) -> bool:
-        """编译DLL并上传更新插件"""
+    def compile_and_upload_dll(self, plugin_id: str, project_name: str = 'TestGAgent') -> bool:
+        """
+        编译DLL并上传更新插件
+        
+        使用业务适配器抽象业务逻辑，移除硬编码
+        
+        Args:
+            plugin_id: 插件ID
+            project_name: 项目名称（默认TestGAgent）
+        
+        Returns:
+            是否成功
+        """
         try:
+            # 使用业务适配器编译DLL
+            from tests.adapters import get_business_adapter
+            
+            adapter = get_business_adapter()
+            
             # 1. 编译DLL
-            dll_path = "/Users/wanghuan/aelf/LoadTest/Dll/TestGAgent"
-            compile_cmd = f"cd {dll_path} && dotnet build TestGAgent.Grains/TestGAgent.Grains.csproj -c Release"
-            result = subprocess.run(compile_cmd, shell=True, capture_output=True, text=True)
-            
-            if result.returncode != 0:
-                logger.error(f"DLL编译失败: {result.stderr}")
+            if not adapter.compile_artifact(project_name):
+                logger.error("DLL编译失败")
                 return False
-                
-            logger.info("DLL编译成功")
             
-            # 2. 获取编译后的DLL文件
-            dll_file = os.path.join(dll_path, "TestGAgent.Grains/bin/Release/net9.0/TestGAgent.Grains.dll")
-            if not os.path.exists(dll_file):
+            # 2. 获取编译后的DLL文件路径
+            dll_file = adapter.get_artifact_path(project_name)
+            if not dll_file or not os.path.exists(dll_file):
                 logger.error(f"DLL文件不存在: {dll_file}")
                 return False
-                
+            
             # 3. 上传DLL更新插件
             test_case = self.create_test_case(
                 name="更新插件DLL",
@@ -133,7 +149,7 @@ class TestPluginAPI:
                 endpoint=f"/{plugin_id}",
                 method="PUT",
                 params={
-                    'code': ('TestGAgent.Grains.dll', open(dll_file, 'rb'))
+                    'code': (os.path.basename(dll_file), open(dll_file, 'rb'), 'application/x-msdownload')
                 },
                 expected_status=200,
                 expected_response={
@@ -155,27 +171,23 @@ class TestPluginAPI:
             return False
 
     def get_access_token(self) -> str:
-        """获取访问令牌"""
+        """
+        获取访问令牌
+        
+        使用业务适配器获取认证信息，避免硬编码
+        """
         try:
-            response = requests.post(
-                'https://aevatar-station-ui-staging.aevatar.ai/connect/token',
-                headers={
-                    'content-type': 'application/x-www-form-urlencoded',
-                    'origin': 'https://aevatar-station-ui-staging.aevatar.ai'
-                },
-                data={
-                    'grant_type': 'password',
-                    'scope': 'Aevatar offline_access',
-                    'username': 'haylee-100@qq.com',
-                    'password': 'Wh520520!',
-                    'client_id': 'AevatarAuthServer'
-                }
-            )
+            from tests.adapters import get_business_adapter
             
-            if response.status_code == 200:
-                return response.json().get('access_token')
+            adapter = get_business_adapter()
+            headers = adapter.get_auth_headers()
+            
+            if 'Authorization' in headers:
+                token = headers['Authorization'].replace('Bearer ', '')
+                logger.info("成功获取访问令牌")
+                return token
             else:
-                logger.error(f"获取token失败: {response.text}")
+                logger.error("无法获取访问令牌，请检查认证配置")
                 return None
         except Exception as e:
             logger.error(f"获取token时发生错误: {str(e)}")
@@ -183,7 +195,13 @@ class TestPluginAPI:
 
     @allure.step('测试环境准备')
     def setup_method(self, method):
-        """在每个测试方法之前设置认证头"""
+        """在每个测试方法之前设置认证头和配置"""
+        # 初始化配置管理器
+        if self.config is None:
+            self.config = ConfigManager()
+            self.BASE_URL = self.config.get('base_url')
+            self.TEST_PROJECT_ID = self.config.get('test_project_id')
+        
         # 获取访问令牌
         access_token = self.get_access_token()
         if not access_token:
@@ -208,32 +226,45 @@ class TestPluginAPI:
         logger.info(f"Using TEST_PROJECT_ID: {self.TEST_PROJECT_ID}")
         logger.info(f"Using headers: {json.dumps(self.headers, indent=2)}")
         
-        # 编译DLL
-        dll_path = "/Users/wanghuan/aelf/LoadTest/Dll/TestGAgent"
-        compile_cmd = f"cd {dll_path} && dotnet build TestGAgent.Grains/TestGAgent.Grains.csproj -c Release"
-        result = subprocess.run(compile_cmd, shell=True, capture_output=True, text=True)
+        # 使用业务适配器编译DLL（如果配置了DLL_BUILD_PATH）
+        from tests.adapters import get_business_adapter
         
-        if result.returncode != 0:
-            logger.error(f"DLL编译失败: {result.stderr}")
-            pytest.skip("Failed to compile DLL")
+        adapter = get_business_adapter()
+        
+        # 检查是否配置了DLL构建路径
+        if hasattr(adapter, 'dll_build_path') and adapter.dll_build_path:
+            project_name = os.getenv('DLL_PROJECT_NAME', 'TestGAgent')
             
-        logger.info("DLL编译成功")
-        
-        # 获取编译后的DLL文件
-        dll_file = os.path.join(dll_path, "TestGAgent.Grains/bin/Release/net9.0/TestGAgent.Grains.dll")
-        if not os.path.exists(dll_file):
-            logger.error(f"DLL文件不存在: {dll_file}")
-            pytest.skip("DLL file not found")
+            # 编译DLL
+            if not adapter.compile_artifact(project_name):
+                logger.error("DLL编译失败")
+                pytest.skip("Failed to compile DLL")
+            
+            logger.info("DLL编译成功")
+            
+            # 获取编译后的DLL文件
+            dll_file = adapter.get_artifact_path(project_name)
+            if not dll_file or not os.path.exists(dll_file):
+                logger.error(f"DLL文件不存在: {dll_file}")
+                pytest.skip("DLL file not found")
+            
+            self.dll_file = dll_file
+        else:
+            logger.warning("DLL_BUILD_PATH 未配置，跳过DLL编译步骤")
+            self.dll_file = None
             
         # 创建测试插件
+        if not self.dll_file:
+            pytest.skip("DLL file not available, cannot create test plugin")
+        
         test_case = self.create_test_case(
             name="创建测试插件",
             description="创建用于测试的插件",
             endpoint="",
             method="POST",
             params={
-                'projectId': '4905508f-def5-ff31-f692-3a196ee1455d',
-                'code': ('TestGAgent.Grains.dll', open(dll_file, 'rb'), 'application/x-msdownload')
+                'projectId': self.TEST_PROJECT_ID,  # 使用配置的项目ID，不再硬编码
+                'code': (os.path.basename(self.dll_file), open(self.dll_file, 'rb'), 'application/x-msdownload')
             },
             expected_status=200,
             expected_response={

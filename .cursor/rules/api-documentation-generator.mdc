@@ -1,0 +1,545 @@
+# 通用后端接口文档生成规则
+
+## 规则概述
+此规则用于根据用户指定的模块，自动生成完整的后端接口文档到 @doc/API.md 中。
+支持多种编程语言和框架：Java、Node.js、Python、Go、C#等。
+
+## 支持的语言和框架
+
+### 1. Java生态
+- **Spring Boot** (Spring MVC, Spring WebFlux)
+- **JAX-RS** (Jersey, RESTEasy)
+- **Quarkus**
+- **Micronaut**
+
+### 2. Node.js生态
+- **Express.js**
+- **Koa.js**
+- **Fastify**
+- **NestJS**
+- **Hapi.js**
+
+### 3. Python生态
+- **FastAPI**
+- **Flask**
+- **Django REST Framework**
+- **Tornado**
+- **Sanic**
+
+### 4. Go生态
+- **Gin**
+- **Echo**
+- **Fiber**
+- **Chi**
+- **Gorilla Mux**
+
+### 5. C#生态
+- **ASP.NET Core**
+- **ASP.NET Web API**
+
+### 6. 其他语言
+- **PHP** (Laravel, Symfony)
+- **Ruby** (Rails API)
+- **Rust** (Actix-web, Warp)
+
+## 生成流程
+
+### 1. 语言和框架识别阶段
+
+#### 1.1 自动识别策略
+根据项目文件自动识别语言和框架：
+```
+- package.json -> Node.js项目
+- pom.xml/build.gradle -> Java项目  
+- requirements.txt/pyproject.toml -> Python项目
+- go.mod -> Go项目
+- *.csproj -> C#项目
+- composer.json -> PHP项目
+- Gemfile -> Ruby项目
+- Cargo.toml -> Rust项目
+```
+
+#### 1.2 框架特征识别
+```
+Java:
+- Spring Boot: @RestController, @RequestMapping
+- JAX-RS: @Path, @GET, @POST
+
+Node.js:
+- Express: app.get(), app.post(), router.use()
+- NestJS: @Controller(), @Get(), @Post()
+
+Python:
+- FastAPI: @app.get(), @app.post(), APIRouter
+- Flask: @app.route(), Blueprint
+- Django: class-based views, @api_view
+
+Go:
+- Gin: router.GET(), router.POST()
+- Echo: e.GET(), e.POST()
+
+C#:
+- ASP.NET Core: [ApiController], [HttpGet], [HttpPost]
+```
+
+### 2. 代码搜索策略
+
+#### 2.1 通用搜索模式
+使用以下工具并行搜索：
+```
+- codebase_search: 语义搜索指定模块的控制器/路由文件
+- grep_search: 精确搜索框架特定的注解/装饰器模式
+- file_search: 查找具体的控制器/路由文件
+```
+
+#### 2.2 语言特定搜索关键词
+```
+Java:
+- 控制器: "{模块名}Controller", "@RestController"
+- 服务: "{模块名}Service", "@Service"
+
+Node.js:
+- 路由: "{模块名}Router", "router.", "app."
+- 控制器: "{模块名}Controller", "controller"
+
+Python:
+- 视图: "{模块名}View", "@app.route", "class.*View"
+- 路由: "{模块名}Router", "APIRouter"
+
+Go:
+- 处理器: "{模块名}Handler", "func.*Handler"
+- 路由: "{模块名}Router", "router."
+
+C#:
+- 控制器: "{模块名}Controller", "[ApiController]"
+```
+
+### 3. 代码分析规则
+
+#### 3.1 路由和端点识别
+
+**Java (Spring Boot)**
+```java
+@RestController
+@RequestMapping("/api/users")
+public class UserController {
+    @GetMapping("/list")
+    @PreAuthorize("hasPermission('user:list')")
+    public ResponseEntity<List<User>> getUsers() {}
+}
+```
+
+**Node.js (Express)**
+```javascript
+router.get('/api/users/list', authMiddleware, (req, res) => {
+    // 处理逻辑
+});
+```
+
+**Python (FastAPI)**
+```python
+@app.get("/api/users/list", dependencies=[Depends(check_permission)])
+async def get_users() -> List[User]:
+    pass
+```
+
+**Go (Gin)**
+```go
+func SetupRoutes(r *gin.Engine) {
+    api := r.Group("/api")
+    api.GET("/users/list", authMiddleware(), getUserList)
+}
+```
+
+**C# (ASP.NET Core)**
+```csharp
+[ApiController]
+[Route("api/[controller]")]
+public class UsersController : ControllerBase {
+    [HttpGet("list")]
+    [Authorize(Policy = "UserListPolicy")]
+    public ActionResult<List<User>> GetUsers() {}
+}
+```
+
+#### 3.2 参数提取规则
+
+**请求参数识别**
+```
+Java: @RequestParam, @PathVariable, @RequestBody
+Node.js: req.params, req.query, req.body
+Python: Query(), Path(), Body(), Form()
+Go: c.Param(), c.Query(), c.ShouldBindJSON()
+C#: [FromQuery], [FromRoute], [FromBody]
+```
+
+**验证规则识别**
+```
+Java: @Valid, @NotNull, @Size, @Email
+Node.js: joi, express-validator, class-validator
+Python: pydantic models, Field()
+Go: validator package, binding tags
+C#: DataAnnotations, [Required], [StringLength]
+```
+
+#### 3.3 响应格式识别
+
+**统一响应格式**
+```
+Java: ResponseEntity, AjaxResult, ApiResponse
+Node.js: res.json(), custom response wrapper
+Python: Response models, JSONResponse
+Go: gin.H, custom response struct
+C#: ActionResult, ApiResponse
+```
+
+### 4. 文档模板适配
+
+#### 4.1 通用接口文档格式
+```markdown
+### X.X {接口名称}
+
+**接口描述：** {功能描述}
+
+**请求 URL：** `{HTTP方法} {接口路径}`
+
+**权限要求：** `{权限描述}` （如果需要）
+
+**请求参数：**
+| 参数名 | 类型 | 位置 | 必填 | 描述 | 验证规则 |
+|--------|------|------|------|------|----------|
+| param1 | string | query | 是 | 参数描述 | 长度1-50 |
+
+**请求示例：**
+```{language}
+{请求示例代码}
+```
+
+**响应示例：**
+```json
+{
+  "code": 200,
+  "message": "success",
+  "data": {}
+}
+```
+
+**业务异常码：**
+| 错误码 | 说明 | HTTP状态码 | 解决方案 |
+|--------|------|------------|----------|
+| 10001 | 具体错误 | 400 | 解决方案 |
+```
+
+#### 4.2 语言特定的请求示例
+
+**Java (Spring Boot)**
+```java
+// 使用RestTemplate
+ResponseEntity<ApiResponse> response = restTemplate.postForEntity(
+    "/api/users", userRequest, ApiResponse.class);
+
+// 使用WebClient
+Mono<ApiResponse> response = webClient.post()
+    .uri("/api/users")
+    .bodyValue(userRequest)
+    .retrieve()
+    .bodyToMono(ApiResponse.class);
+```
+
+**Node.js**
+```javascript
+// 使用axios
+const response = await axios.post('/api/users', userRequest);
+
+// 使用fetch
+const response = await fetch('/api/users', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(userRequest)
+});
+```
+
+**Python**
+```python
+# 使用requests
+response = requests.post('/api/users', json=user_request)
+
+# 使用httpx
+async with httpx.AsyncClient() as client:
+    response = await client.post('/api/users', json=user_request)
+```
+
+**Go**
+```go
+// 使用net/http
+resp, err := http.Post("/api/users", "application/json", bytes.NewBuffer(jsonData))
+
+// 使用resty
+resp, err := resty.New().R().
+    SetBody(userRequest).
+    Post("/api/users")
+```
+
+### 5. 错误码生成规则
+
+#### 5.1 通用错误码分类
+- **1000x**: 认证授权相关
+- **2000x**: 业务逻辑相关  
+- **3000x**: 数据验证相关
+- **4000x**: 外部服务相关
+- **5000x**: 系统内部相关
+
+#### 5.2 语言特定错误处理
+
+**Java**
+```java
+@ExceptionHandler(ServiceException.class)
+public ResponseEntity<ApiResponse> handleServiceException(ServiceException e) {
+    return ResponseEntity.status(e.getHttpStatus())
+        .body(new ApiResponse(e.getCode(), e.getMessage()));
+}
+```
+
+**Node.js**
+```javascript
+app.use((error, req, res, next) => {
+    res.status(error.status || 500).json({
+        code: error.code || 50001,
+        message: error.message
+    });
+});
+```
+
+**Python**
+```python
+@app.exception_handler(BusinessException)
+async def business_exception_handler(request: Request, exc: BusinessException):
+    return JSONResponse(
+        status_code=exc.status_code,
+        content={"code": exc.code, "message": exc.message}
+    )
+```
+
+### 6. 执行步骤
+
+#### 6.1 项目分析
+1. 识别项目语言和框架
+2. 定位配置文件和依赖
+3. 确定项目结构模式
+4. 识别路由定义方式
+
+#### 6.2 模块搜索
+1. 根据模块名称搜索相关文件
+2. 识别控制器/路由文件
+3. 分析API端点定义
+4. 提取参数和响应模型
+
+#### 6.3 文档生成
+1. 生成统一格式的接口文档
+2. 添加语言特定的代码示例
+3. 生成对应的错误码说明
+4. 输出到 @doc/API.md
+
+### 7. 使用示例
+
+#### 7.1 多语言项目支持
+```
+请生成用户管理模块的接口文档 (Java Spring Boot)
+请生成订单API的接口文档 (Node.js Express)
+请生成产品管理接口文档 (Python FastAPI)
+请生成支付服务接口文档 (Go Gin)
+请生成权限管理接口文档 (C# ASP.NET Core)
+```
+
+#### 7.2 自动识别示例
+```
+请生成用户管理模块的接口文档
+-> 自动识别项目语言和框架
+-> 使用对应的分析规则
+-> 生成适配的文档格式
+```
+
+### 8. 高级特性
+
+#### 8.1 多语言项目支持
+- 微服务架构中不同服务使用不同语言
+- 自动识别每个服务的语言和框架
+- 生成统一格式的文档
+
+#### 8.2 API网关集成
+- 识别API网关路由配置
+- 支持路径重写和前缀
+- 生成完整的外部访问路径
+
+#### 8.3 OpenAPI/Swagger集成
+- 自动读取已有的OpenAPI规范
+- 补充业务异常码和使用说明
+- 生成更完整的文档
+
+### 9. 扩展性
+
+#### 9.1 新语言支持
+- 定义新的语言识别规则
+- 添加框架特定的解析逻辑
+- 扩展代码示例模板
+
+#### 9.2 自定义模板
+- 支持项目特定的文档模板
+- 可配置的错误码分类
+- 自定义响应格式
+
+---
+
+## 参考模板
+
+参考已生成的完整文档模板：@doc/API.md
+
+该文档展示了标准的接口文档结构，适用于所有支持的语言和框架。
+
+---
+
+**规则版本：** v2.0  
+**创建时间：** 2024-03-21  
+**适用范围：** 多语言后端项目接口文档生成  
+**支持语言：** Java, Node.js, Python, Go, C#, PHP, Ruby, Rust
+
+#### 4.1 Controller分析重点
+- `@RestController` 和 `@Controller` 注解
+- `@RequestMapping` 类级别路径
+- HTTP方法注解：`@GetMapping`、`@PostMapping`、`@PutMapping`、`@DeleteMapping`
+- 权限注解：`@PreAuthorize`、`@RequiresPermissions`
+- 参数注解：`@RequestBody`、`@PathVariable`、`@RequestParam`
+- 验证注解：`@Valid`、`@Validated`
+- 日志注解：`@Log`
+
+#### 4.2 方法分析要点
+- 方法名称和注释
+- 参数类型和验证规则
+- 返回值类型
+- 业务逻辑判断
+- 异常处理逻辑
+
+#### 4.3 数据模型分析要点
+- 实体类字段及注释
+- 验证注解：`@NotBlank`、`@Size`、`@Email`、`@Pattern`
+- 数据转换注解：`@JsonFormat`、`@DateTimeFormat`
+- 关联关系：`@OneToMany`、`@ManyToOne`等
+- 枚举值说明
+
+### 5. 业务异常码生成规则
+
+#### 5.1 异常码分类体系
+- 10000段：认证授权相关
+- 20000段：用户管理相关
+- 30000段：文件操作相关
+- 40000段：数据操作相关
+- 50000段：系统通用相关
+- 60000段：业务特定相关
+
+#### 5.2 异常码生成策略
+1. 从Controller方法中提取异常处理逻辑
+2. 分析Service层的业务校验
+3. 查找相关的Exception类定义
+4. 生成对应的业务异常码表
+
+### 6. 文档生成执行步骤
+
+#### 6.1 信息收集
+1. 确定模块名称和范围
+2. 搜索相关Controller文件
+3. 读取Controller完整代码
+4. 分析接口方法和参数
+5. 提取数据模型定义
+6. 收集异常处理信息
+
+#### 6.2 文档生成
+1. 生成文档标题和目录
+2. 按模块分类生成接口文档
+3. 生成数据模型说明
+4. 生成业务异常码表
+5. 添加使用说明和注意事项
+
+#### 6.3 质量检查
+- [ ] 所有接口都有完整的参数说明
+- [ ] 所有响应示例都是有效的JSON格式
+- [ ] 权限要求准确标注
+- [ ] 数据模型定义完整
+- [ ] 业务异常码覆盖全面
+- [ ] 格式规范统一
+
+### 7. 使用示例
+
+#### 7.1 用户请求示例
+```
+请生成用户管理模块的接口文档
+请生成订单管理和支付模块的接口文档
+请生成系统配置模块的接口文档到doc/API.md中
+```
+
+#### 7.2 处理流程
+1. 解析用户请求，提取模块名称
+2. 搜索相关Controller：`SysUserController`、`OrderController`等
+3. 读取Controller代码，分析接口方法
+4. 提取数据模型和异常处理
+5. 按模板生成文档内容
+6. 更新或创建 @doc/API.md 文件
+
+### 8. 高级特性
+
+#### 8.1 多模块合并
+当用户指定多个模块时：
+- 分别分析各模块
+- 合并到统一文档结构
+- 保持模块间的独立性
+
+#### 8.2 增量更新
+- 检查现有文档结构
+- 只更新指定模块部分
+- 保留其他模块内容
+
+#### 8.3 自定义配置
+- 支持自定义文档模板
+- 支持自定义异常码规则
+- 支持自定义输出格式
+
+### 9. 错误处理
+
+#### 9.1 常见问题处理
+- Controller文件不存在：提示用户检查模块名称
+- 权限不足：提示缺少必要的代码访问权限
+- 代码解析失败：提供部分可用信息
+
+#### 9.2 降级策略
+- 无法获取完整代码时，提供基础模板
+- 异常码无法提取时，提供通用异常码
+- 数据模型缺失时，提供基础字段说明
+
+### 10. 维护更新
+
+#### 10.1 规则更新
+- 根据新的Spring Boot版本更新注解识别
+- 根据项目演进更新模板结构
+- 根据用户反馈优化生成逻辑
+
+#### 10.2 模板维护
+- 定期检查模板的完整性
+- 更新业务异常码分类
+- 优化文档可读性
+
+---
+
+## 参考模板
+
+参考已生成的完整文档模板：@doc/API.md
+
+该文档包含了完整的接口文档结构，包括：
+- 详细的接口说明
+- 完整的数据模型定义
+- 全面的业务异常码
+- 规范的格式要求
+
+---
+
+**规则版本：** v1.0  
+**创建时间：** 2024-03-21  
+**适用范围：** Spring Boot项目后端接口文档生成
