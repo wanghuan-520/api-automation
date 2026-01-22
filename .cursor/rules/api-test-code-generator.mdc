@@ -1,0 +1,369 @@
+# API接口自动化测试代码生成规则
+
+## 概述
+此规则用于根据CSV格式的测试用例文件，自动生成基于Python + pytest + requests + allure的接口自动化测试代码。
+
+## CSV文件要求
+用户提供的CSV文件需包含以下列：
+- `test_case_id`: 测试用例ID
+- `test_case_name`: 测试用例名称
+- `api_name`: 接口名称
+- `method`: 请求方法
+- `url`: 请求URL
+- `headers`: 请求头（JSON格式）
+- `request_data`: 请求参数（JSON格式）
+- `expected_status_code`: 期望状态码
+- `expected_response`: 期望响应（JSON格式）
+- `test_type`: 测试类型（positive/negative/boundary）
+- `priority`: 优先级（high/medium/low）
+- `description`: 测试描述
+- `preconditions`: 前置条件
+- `postconditions`: 后置条件
+- `tags`: 标签（逗号分隔）
+
+## 项目结构生成规则
+
+```
+api_autotest/
+├── conftest.py              # pytest配置文件
+├── pytest.ini              # pytest配置
+├── requirements.txt        # 项目依赖
+├── config/
+│   ├── __init__.py
+│   ├── config.yaml        # 环境配置文件
+│   └── config.py          # 配置读取类
+├── core/
+│   ├── __init__.py
+│   ├── api_client.py      # 请求客户端封装
+│   ├── logger.py          # 日志工具
+│   └── assertions.py      # 断言工具
+├── data/
+│   └── test_cases.csv     # 测试用例数据
+├── testcases/
+│   ├── __init__.py
+│   ├── conftest.py        # 测试用例共享fixture
+│   └── test_*.py          # 测试用例文件（按模块划分）
+└── utils/
+    ├── __init__.py
+    ├── data_handler.py    # 数据处理工具
+    └── common.py          # 通用工具函数
+```
+
+## 代码生成规则
+
+### 1. 配置文件生成
+#### config.yaml
+```yaml
+# 环境配置
+env:
+  test:
+    base_url: "http://test-api.example.com"
+    timeout: 30
+  prod:
+    base_url: "http://api.example.com"
+    timeout: 30
+
+# 全局请求头
+headers:
+  Content-Type: "application/json"
+  User-Agent: "ApiTest/1.0"
+
+# 日志配置
+logging:
+  level: INFO
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: "logs/api_test.log"
+```
+
+#### config.py
+```python
+import os
+import yaml
+from typing import Dict, Any
+
+class Config:
+    _instance = None
+    _config_data: Dict[str, Any] = {}
+
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+        return cls._instance
+
+    def __init__(self):
+        if not self._config_data:
+            self.load_config()
+
+    def load_config(self):
+        config_path = os.path.join(os.path.dirname(__file__), 'config.yaml')
+        with open(config_path, 'r', encoding='utf-8') as f:
+            self._config_data = yaml.safe_load(f)
+
+    @property
+    def base_url(self) -> str:
+        env = os.getenv('TEST_ENV', 'test')
+        return self._config_data['env'][env]['base_url']
+
+    @property
+    def headers(self) -> Dict[str, str]:
+        return self._config_data['headers']
+
+    @property
+    def timeout(self) -> int:
+        env = os.getenv('TEST_ENV', 'test')
+        return self._config_data['env'][env]['timeout']
+```
+
+### 2. 核心组件生成
+#### api_client.py
+```python
+import requests
+from typing import Dict, Any, Optional
+from core.logger import logger
+from config.config import Config
+
+class ApiClient:
+    def __init__(self):
+        self.config = Config()
+        self.session = requests.Session()
+        self.session.headers.update(self.config.headers)
+
+    def request(
+        self,
+        method: str,
+        url: str,
+        headers: Optional[Dict[str, str]] = None,
+        data: Optional[Dict[str, Any]] = None,
+        **kwargs
+    ) -> requests.Response:
+        """发送HTTP请求"""
+        full_url = f"{self.config.base_url}{url}"
+        merged_headers = {**self.session.headers, **(headers or {})}
+
+        logger.info(f"Sending {method} request to {full_url}")
+        logger.debug(f"Headers: {merged_headers}")
+        logger.debug(f"Data: {data}")
+
+        response = self.session.request(
+            method=method,
+            url=full_url,
+            headers=merged_headers,
+            json=data,
+            timeout=self.config.timeout,
+            **kwargs
+        )
+
+        logger.info(f"Response status: {response.status_code}")
+        logger.debug(f"Response body: {response.text}")
+
+        return response
+```
+
+#### assertions.py
+```python
+import json
+from typing import Any, Dict
+import allure
+from requests import Response
+
+class ApiAssertions:
+    @staticmethod
+    @allure.step("验证响应状态码")
+    def assert_status_code(response: Response, expected_code: int):
+        assert response.status_code == expected_code, \
+            f"期望状态码 {expected_code}, 实际状态码 {response.status_code}"
+
+    @staticmethod
+    @allure.step("验证响应内容")
+    def assert_response_content(response: Response, expected_response: Dict[str, Any]):
+        actual_response = response.json()
+        expected = json.loads(expected_response) if isinstance(expected_response, str) else expected_response
+        
+        for key, value in expected.items():
+            assert key in actual_response, f"响应中缺少键 {key}"
+            assert actual_response[key] == value, \
+                f"键 {key} 的值不匹配，期望 {value}, 实际 {actual_response[key]}"
+```
+
+### 3. 测试用例生成规则
+- 按模块生成测试文件（test_*.py）
+- 使用pytest参数化处理CSV数据
+- 集成allure报告
+- 实现共享fixture
+
+#### conftest.py示例
+```python
+import pytest
+import pandas as pd
+from typing import Dict, Any
+from core.api_client import ApiClient
+
+@pytest.fixture(scope="session")
+def api_client():
+    return ApiClient()
+
+@pytest.fixture(scope="session")
+def test_data() -> pd.DataFrame:
+    return pd.read_csv("data/test_cases.csv")
+
+@pytest.fixture
+def auth_token(api_client):
+    """登录获取token的fixture"""
+    response = api_client.request(
+        method="POST",
+        url="/login",
+        data={"username": "test", "password": "test123"}
+    )
+    return response.json()["token"]
+```
+
+#### 测试用例文件示例
+```python
+import pytest
+import allure
+import json
+from typing import Dict, Any
+from core.assertions import ApiAssertions
+
+@allure.feature("{module_name}")
+class Test{ModuleName}:
+    
+    @pytest.mark.parametrize("test_case", test_data.to_dict("records"))
+    def test_api(self, api_client, test_case: Dict[str, Any]):
+        """
+        动态生成的测试方法
+        """
+        # 设置allure标签
+        allure.dynamic.story(test_case["api_name"])
+        allure.dynamic.title(test_case["test_case_name"])
+        allure.dynamic.description(test_case["description"])
+        for tag in test_case["tags"].split(","):
+            allure.dynamic.tag(tag.strip())
+
+        # 处理请求数据
+        headers = json.loads(test_case["headers"]) if test_case["headers"] else {}
+        request_data = json.loads(test_case["request_data"]) if test_case["request_data"] else {}
+
+        # 发送请求
+        with allure.step(f"发送{test_case['method']}请求到{test_case['url']}"):
+            response = api_client.request(
+                method=test_case["method"],
+                url=test_case["url"],
+                headers=headers,
+                data=request_data
+            )
+
+        # 断言响应
+        ApiAssertions.assert_status_code(response, test_case["expected_status_code"])
+        if test_case["expected_response"]:
+            ApiAssertions.assert_response_content(
+                response,
+                json.loads(test_case["expected_response"])
+            )
+```
+
+### 4. 工具类生成规则
+#### data_handler.py
+```python
+import pandas as pd
+from typing import List, Dict, Any
+
+class DataHandler:
+    @staticmethod
+    def load_test_cases(csv_path: str) -> pd.DataFrame:
+        """加载测试用例数据"""
+        return pd.read_csv(csv_path)
+
+    @staticmethod
+    def group_by_module(test_cases: pd.DataFrame) -> Dict[str, List[Dict[str, Any]]]:
+        """按模块分组测试用例"""
+        return {
+            name: group.to_dict("records")
+            for name, group in test_cases.groupby("module")
+        }
+```
+
+### 5. 依赖文件生成
+#### requirements.txt
+```
+pytest>=7.0.0
+pytest-html>=3.1.1
+allure-pytest>=2.9.45
+requests>=2.26.0
+pyyaml>=6.0
+pandas>=1.3.0
+python-dotenv>=0.19.0
+```
+
+#### pytest.ini
+```ini
+[pytest]
+addopts = -v -s --alluredir=./allure-results
+testpaths = testcases
+python_files = test_*.py
+python_classes = Test*
+python_functions = test_*
+markers =
+    smoke: smoke test cases
+    positive: positive test cases
+    negative: negative test cases
+    boundary: boundary test cases
+```
+
+## 使用说明
+
+1. **准备工作**
+   - 确保CSV测试用例文件格式正确
+   - 安装所需依赖：`pip install -r requirements.txt`
+   - 配置环境变量：`TEST_ENV=test`
+
+2. **生成代码**
+   - 创建项目目录结构
+   - 生成配置文件
+   - 生成核心组件
+   - 根据CSV生成测试用例文件
+   - 生成工具类和依赖文件
+
+3. **运行测试**
+   ```bash
+   pytest
+   ```
+
+4. **生成报告**
+   ```bash
+   allure serve allure-results
+   ```
+
+## 注意事项
+
+1. **数据安全**
+   - 敏感信息（密码、token等）使用环境变量或配置文件管理
+   - 不要在代码中硬编码敏感信息
+
+2. **代码规范**
+   - 遵循PEP 8编码规范
+   - 添加适当的类型注解
+   - 编写完整的文档字符串
+
+3. **测试原则**
+   - 测试用例相互独立
+   - 合理使用fixture管理测试状态
+   - 适当添加日志记录
+   - 使用合适的断言方式
+
+4. **报告优化**
+   - 合理使用allure标签
+   - 添加详细的测试步骤描述
+   - 记录关键测试数据
+
+## 维护建议
+
+1. **代码维护**
+   - 定期更新依赖包
+   - 及时处理废弃的API
+   - 保持代码结构清晰
+
+2. **测试用例维护**
+   - 定期更新测试数据
+   - 及时清理无效测试用例
+   - 保持测试覆盖率
