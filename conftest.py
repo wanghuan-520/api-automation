@@ -1,15 +1,27 @@
 import pytest
 import os
-from typing import Generator
+import pandas as pd
+from typing import Generator, Dict, Any
 from utils.client import APIClient
 import subprocess
 
 @pytest.fixture(scope="session")
 def api_client() -> Generator[APIClient, None, None]:
     """全局API客户端fixture"""
-    base_url = os.getenv("API_BASE_URL", "http://localhost:8000")
+    base_url = os.getenv("API_BASE_URL", "http://localhost:5000")
     client = APIClient(base_url=base_url)
     yield client
+
+@pytest.fixture(scope="session")
+def test_data() -> pd.DataFrame:
+    """加载测试用例CSV数据"""
+    csv_path = os.path.join(os.path.dirname(__file__), "test-cases", "all_api_test_cases.csv")
+    if not os.path.exists(csv_path):
+        raise FileNotFoundError(f"测试用例文件不存在: {csv_path}")
+    df = pd.read_csv(csv_path, encoding='utf-8')
+    # 过滤空行
+    df = df.dropna(subset=['test_case_id'])
+    return df
 
 @pytest.fixture(scope="function")
 def test_data_dir() -> str:
